@@ -1,111 +1,107 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/SearchPage.css';
 
-function SearchPage() {
-  const [dogs, setDogs] = useState([]);
+const SearchPage = ({ user }) => {
   const [breeds, setBreeds] = useState([]);
+  const [dogs, setDogs] = useState([]);
+  const [filteredDogs, setFilteredDogs] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedBreed, setSelectedBreed] = useState('');
-  const [favorites, setFavorites] = useState([]);
-  const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
   const [sortOrder, setSortOrder] = useState('asc');
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchBreeds = async () => {
-      try {
-        const response = await axios.get(
-          'https://frontend-take-home-service.fetch.com/dogs/breeds',
-          { withCredentials: true }
-        );
-        setBreeds(response.data);
-      } catch (err) {
-        setError('Failed to fetch breeds.');
-      }
-    };
-    fetchBreeds();
+    axios.get('https://frontend-take-home-service.fetch.com/dogs/breeds')
+      .then(response => setBreeds(response.data))
+      .catch(error => console.error('Error fetching breeds:', error));
   }, []);
 
   useEffect(() => {
-    const fetchDogs = async () => {
-      try {
-        const response = await axios.get(
-          `https://frontend-take-home-service.fetch.com/dogs/search?breeds=${selectedBreed}&sort=breed:${sortOrder}&size=10&from=${(page - 1) * 10}`,
-          { withCredentials: true }
-        );
-        const dogDetails = await axios.post(
-          'https://frontend-take-home-service.fetch.com/dogs',
-          response.data.resultIds,
-          { withCredentials: true }
-        );
-        setDogs(dogDetails.data);
-      } catch (err) {
-        setError('Failed to fetch dogs.');
-      }
-    };
     fetchDogs();
-  }, [selectedBreed, sortOrder, page]);
+  }, [selectedBreed, sortOrder]);
 
-  const handleFavorite = (id) => {
-    setFavorites((prev) => (prev.includes(id) ? prev.filter((fav) => fav !== id) : [...prev, id]));
+  const fetchDogs = () => {
+    let query = `https://frontend-take-home-service.fetch.com/dogs/search?size=50&sort=breed:${sortOrder}`;
+    if (selectedBreed) {
+      query += `&breeds=${selectedBreed}`;
+    }
+    axios.get(query, { withCredentials: true })
+      .then(response => {
+        axios.post('https://frontend-take-home-service.fetch.com/dogs', response.data.resultIds, { withCredentials: true })
+          .then(res => {
+            setDogs(res.data);
+            setFilteredDogs(res.data);
+          })
+          .catch(error => console.error('Error fetching dog details:', error));
+      })
+      .catch(error => console.error('Error searching dogs:', error));
+  };
+
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+    const filtered = dogs.filter(dog => dog.breed.toLowerCase().includes(e.target.value.toLowerCase()));
+    setFilteredDogs(filtered);
+  };
+
+  const handleSort = () => {
+    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+  };
+
+  const handleLogout = async () => {
+    await fetch('https://frontend-take-home-service.fetch.com/auth/logout', { method: 'POST', credentials: 'include' });
+    navigate('/');
+  };
+
+  const nextSlide = () => {
+    setCurrentIndex(prevIndex => (prevIndex + 1) % filteredDogs.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentIndex(prevIndex => (prevIndex - 1 + filteredDogs.length) % filteredDogs.length);
   };
 
   return (
     <div className="search-container">
-      <h1 className="search-title">Search Dogs</h1>
-      {error && <p className="error-message">{error}</p>}
+      <nav className="navbar">
+        <div className="site-title">Adopt Me</div>
+        <button className="logout-button" onClick={handleLogout}>Logout</button>
+      </nav>
+      <h2>Welcome, {user.name}!</h2>
+      <div className="search-bar">
+        <input type="text" placeholder="Search your puppy" value={searchTerm} onChange={handleSearch} />
+      </div>
       <div className="filters">
-        <select
-          className="breed-select"
-          value={selectedBreed}
-          onChange={(e) => setSelectedBreed(e.target.value)}
-        >
+        <select onChange={(e) => setSelectedBreed(e.target.value)} value={selectedBreed}>
           <option value="">All Breeds</option>
-          {breeds.map((breed) => (
+          {breeds.map(breed => (
             <option key={breed} value={breed}>{breed}</option>
           ))}
         </select>
-        <button
-          className="sort-button"
-          onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-        >
-          Sort: {sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-        </button>
+        <button onClick={handleSort}>Sort {sortOrder === 'asc' ? '▲' : '▼'}</button>
       </div>
-      <div className="dog-list">
-        {dogs.map((dog) => (
-          <div key={dog.id} className="dog-card">
-            <img src={dog.img} alt={dog.name} className="dog-image" />
-            <h2 className="dog-name">{dog.name}</h2>
-            <p>Breed: {dog.breed}</p>
-            <p>Age: {dog.age}</p>
-            <p>Location: {dog.zip_code}</p>
-            <button
-              className={`favorite-button ${favorites.includes(dog.id) ? 'favorited' : ''}`}
-              onClick={() => handleFavorite(dog.id)}
-            >
-              {favorites.includes(dog.id) ? 'Unfavorite' : 'Favorite'}
-            </button>
-          </div>
-        ))}
-      </div>
-      <div className="pagination">
-        <button
-          className="pagination-button"
-          disabled={page === 1}
-          onClick={() => setPage((prev) => prev - 1)}
-        >
-          Previous
-        </button>
-        <button
-          className="pagination-button"
-          onClick={() => setPage((prev) => prev + 1)}
-        >
-          Next
-        </button>
+      <div className="carousel-container">
+        <button className="carousel-button" onClick={prevSlide}>❮</button>
+        <div className="dog-carousel">
+          {filteredDogs.slice(currentIndex, currentIndex + 3).map(dog => (
+            <div className="dog-card" key={dog.id}>
+              <img className="dog-image" src={dog.img} alt={dog.name} />
+              <div className="dog-info">
+                <h3>{dog.name}</h3>
+                <p>Breed: {dog.breed}</p>
+                <p>Age: {dog.age}</p>
+                <p>Location: {dog.zip_code}</p>
+                <button className="favorite-button">❤️ Favorite</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button className="carousel-button" onClick={nextSlide}>❯</button>
       </div>
     </div>
   );
-}
+};
 
 export default SearchPage;
