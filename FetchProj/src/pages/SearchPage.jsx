@@ -11,6 +11,10 @@ const SearchPage = ({ user }) => {
   const [selectedBreed, setSelectedBreed] = useState('');
   const [sortOrder, setSortOrder] = useState('asc');
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [favorites, setFavorites] = useState([]);
+  const [match, setMatch] = useState(null);
+  const [matchDog, setMatchDog] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,8 +46,37 @@ const SearchPage = ({ user }) => {
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
-    const filtered = dogs.filter(dog => dog.breed.toLowerCase().includes(e.target.value.toLowerCase()));
-    setFilteredDogs(filtered);
+    setShowDropdown(true);
+  };
+
+  const handleBreedSelect = (breed) => {
+    setSelectedBreed(breed);
+    setSearchTerm(breed);
+    setShowDropdown(false);
+    fetchDogs();
+  };
+
+  const toggleFavorite = (dogId) => {
+    setFavorites(prevFavorites =>
+      prevFavorites.includes(dogId)
+        ? prevFavorites.filter(id => id !== dogId)
+        : [...prevFavorites, dogId]
+    );
+  };
+
+  const generateMatch = async () => {
+    if (favorites.length === 0) return;
+    try {
+      const response = await axios.post('https://frontend-take-home-service.fetch.com/dogs/match', favorites, { withCredentials: true });
+      const matchedDogId = response.data.match;
+      setMatch(matchedDogId);
+      
+      axios.post('https://frontend-take-home-service.fetch.com/dogs', [matchedDogId], { withCredentials: true })
+        .then(res => setMatchDog(res.data[0]))
+        .catch(error => console.error('Error fetching matched dog details:', error));
+    } catch (error) {
+      console.error('Error generating match:', error);
+    }
   };
 
   const handleSort = () => {
@@ -56,11 +89,11 @@ const SearchPage = ({ user }) => {
   };
 
   const nextSlide = () => {
-    setCurrentIndex(prevIndex => (prevIndex + 1) % filteredDogs.length);
+    setCurrentIndex(prevIndex => Math.min(prevIndex + 1, filteredDogs.length - 3));
   };
 
   const prevSlide = () => {
-    setCurrentIndex(prevIndex => (prevIndex - 1 + filteredDogs.length) % filteredDogs.length);
+    setCurrentIndex(prevIndex => Math.max(prevIndex - 1, 0));
   };
 
   return (
@@ -69,18 +102,19 @@ const SearchPage = ({ user }) => {
         <div className="site-title">Adopt Me</div>
         <button className="logout-button" onClick={handleLogout}>Logout</button>
       </nav>
-      <h2>Welcome, {user.name}!</h2>
-      <div className="search-bar">
-        <input type="text" placeholder="Search your puppy" value={searchTerm} onChange={handleSearch} />
-      </div>
-      <div className="filters">
-        <select onChange={(e) => setSelectedBreed(e.target.value)} value={selectedBreed}>
-          <option value="">All Breeds</option>
-          {breeds.map(breed => (
-            <option key={breed} value={breed}>{breed}</option>
-          ))}
-        </select>
-        <button onClick={handleSort}>Sort {sortOrder === 'asc' ? '▲' : '▼'}</button>
+      <h2>Welcome, Chandana!</h2>
+      <div className="search-controls">
+        <div className="search-bar" onBlur={() => setTimeout(() => setShowDropdown(false), 200)}>
+          <input type="text" placeholder="Search your puppy" value={searchTerm} onChange={handleSearch} onFocus={() => setShowDropdown(true)} />
+          {showDropdown && breeds.length > 0 && (
+            <ul className="dropdown-list">
+              {breeds.filter(breed => breed.toLowerCase().includes(searchTerm.toLowerCase())).map(breed => (
+                <li key={breed} onClick={() => handleBreedSelect(breed)}>{breed}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <button className="sort-button" onClick={handleSort}>Sort {sortOrder === 'asc' ? '▲' : '▼'}</button>
       </div>
       <div className="carousel-container">
         <button className="carousel-button" onClick={prevSlide}>❮</button>
@@ -93,15 +127,25 @@ const SearchPage = ({ user }) => {
                 <p>Breed: {dog.breed}</p>
                 <p>Age: {dog.age}</p>
                 <p>Location: {dog.zip_code}</p>
-                <button className="favorite-button">❤️ Favorite</button>
+                <button className="favorite-button" onClick={() => toggleFavorite(dog.id)}>
+                  {favorites.includes(dog.id) ? '💔 Unfavorite' : '❤️ Favorite'}
+                </button>
               </div>
             </div>
           ))}
         </div>
         <button className="carousel-button" onClick={nextSlide}>❯</button>
       </div>
+      <div className="match-section">
+        <button className="match-button" onClick={generateMatch}>Find My Match</button>
+        {matchDog && (
+          <div className="match-result">
+            <h3>Your Best Match:</h3>
+            <img className="match-image" src={matchDog.img} alt={matchDog.name} />
+            <p>{matchDog.name} - {matchDog.breed}</p>
+      </div>)}
+    </div>
     </div>
   );
 };
-
 export default SearchPage;
