@@ -1,19 +1,10 @@
-/* Login.css */
-
-body {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  /*background: url('/images/dog-bg.jpg') no-repeat center center/cover;*/
-  font-family: Arial, sans-serif;
-}
 
 .login-container {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
+  overflow: hidden;
 }
 
 .login-box {
