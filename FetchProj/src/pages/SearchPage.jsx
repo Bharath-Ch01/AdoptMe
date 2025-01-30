@@ -83,6 +83,7 @@ const SearchPage = ({ user }) => {
   };
 
   // Toggle favorite dogs
+  
   const toggleFavorite = (dogId) => {
     setFavorites((prevFavorites) =>
       prevFavorites.includes(dogId)
