@@ -14,8 +14,11 @@ Clicking on the 'Adopt!' button will give the user a Pop alert and they can be L
 
 
 Running WebApp(Adopt-Me) on Local Device
+
 Clone the Git Repo and Unzip
-Open VS Code or any editor and in the Terminal, Cd to the unzipped folder
+
+Open VS Code or any editor and in the Terminal, Cd to **FetchProj** in the unzipped folder
+
 Run these commands and install the below dependencies( **Make Sure Node.js is installed in the PC** )
 
 **1.npm install**
